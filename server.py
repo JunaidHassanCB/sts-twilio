@@ -4,17 +4,33 @@ import json
 import sys
 import websockets
 
-from datetime import datetime
 import pytz
 
-import os
 from dotenv import load_dotenv
 
 from constants.constants import CONFIG
-from types.types import Appointment
+
 from utils.network import reserve_slot, book_appointment, get_available_slots
 
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Literal
+
 load_dotenv()
+
+
+@dataclass
+class Appointment:
+    id: str
+    timestamp: datetime
+    patient_name: str
+    mrn: str
+    date: str
+    time: str
+    provider: str
+    reason: str
+    status: Literal["pending", "scheduled", "cancelled"]
+
 
 appointment = Appointment(
     id="-1",
@@ -27,6 +43,27 @@ appointment = Appointment(
     reason="",
     status="pending"
 )
+
+available_slots = []
+
+
+def update_available_slots(slots_for_day: list, browser_time_zone: str):
+    """
+    Update the global available_slots list with formatted slot times.
+
+    Args:
+        slots_for_day (list): List of slot dictionaries containing 'start' datetime strings.
+        browser_time_zone (str): Time zone string (e.g., 'Asia/Karachi').
+    """
+    global available_slots
+    tz = pytz.timezone(browser_time_zone)
+
+    available_slots = [
+        datetime.fromisoformat(slot["start"].replace("Z", "+00:00"))  # parse ISO datetime
+        .astimezone(tz)  # convert to given timezone
+        .strftime("%H:%M")  # format as HH:mm
+        for slot in slots_for_day
+    ]
 
 
 def handle_schedule(appointment, browser_time_zone):
@@ -93,6 +130,14 @@ def check_slots_available(slot_date: str, browser_time_zone: str) -> bool:
     slots_for_day = slot_response.get("data", {}).get(slot_date, [])
 
     return len(slots_for_day) > 0
+
+
+def check_chosen_time(chosen_time, available_slots):
+    if chosen_time not in available_slots:
+        available_alternatives = ", ".join(available_slots[:3])
+        print(available_alternatives)
+        return False
+    return True
 
 
 def sts_connect():

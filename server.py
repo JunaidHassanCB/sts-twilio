@@ -4,10 +4,6 @@ import json
 import sys
 import websockets
 
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Literal
-
 from datetime import datetime
 import pytz
 
@@ -15,23 +11,10 @@ import os
 from dotenv import load_dotenv
 
 from constants.constants import CONFIG
-from utils.utils import reserve_slot, book_appointment
+from types.types import Appointment
+from utils.network import reserve_slot, book_appointment, get_available_slots
 
 load_dotenv()
-
-
-@dataclass
-class Appointment:
-    id: str
-    timestamp: datetime
-    patient_name: str
-    mrn: str
-    date: str
-    time: str
-    provider: str
-    reason: str
-    status: Literal["pending", "scheduled", "cancelled"]
-
 
 appointment = Appointment(
     id="-1",
@@ -86,6 +69,30 @@ def handle_schedule(appointment, browser_time_zone):
     )
 
     return new_appointment
+
+
+def check_slots_available(slot_date: str, browser_time_zone: str) -> bool:
+    """
+    Checks if slots are available for a given date.
+
+    Args:
+        slot_date (str): Date in 'YYYY-MM-DD' format.
+        browser_time_zone (str): Time zone string (e.g., 'Asia/Karachi').
+
+    Returns:
+        bool: True if slots are available, False otherwise.
+    """
+    slot_response = get_available_slots(
+        event_type_id=int(CONFIG["eventTypeId"]),
+        start=slot_date,
+        end=slot_date,
+        time_zone=browser_time_zone
+    )
+
+    # The API returns data keyed by date
+    slots_for_day = slot_response.get("data", {}).get(slot_date, [])
+
+    return len(slots_for_day) > 0
 
 
 def sts_connect():

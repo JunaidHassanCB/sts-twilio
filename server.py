@@ -8,6 +8,17 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
+from datetime import datetime
+import pytz
+
+import os
+from dotenv import load_dotenv
+
+from constants.constants import CONFIG
+from utils.utils import reserve_slot, book_appointment
+
+load_dotenv()
+
 
 @dataclass
 class Appointment:
@@ -22,12 +33,6 @@ class Appointment:
     status: Literal["pending", "scheduled", "cancelled"]
 
 
-config = {
-    "eventTypeId": "2954150",
-    "email": "junaidhassan9299@gmail.com",
-    "language": "en",
-}
-
 appointment = Appointment(
     id="-1",
     timestamp=datetime.now(),
@@ -39,6 +44,48 @@ appointment = Appointment(
     reason="",
     status="pending"
 )
+
+
+def handle_schedule(appointment, browser_time_zone):
+    # Combine date and time into a datetime object
+    # Assuming appointment.date and appointment.time are in ISO-like "YYYY-MM-DD" and "HH:MM" formats
+    timestamp = datetime.fromisoformat(f"{appointment.date}T{appointment.time}")
+
+    # Convert to ISO UTC string
+    timestamp_utc = timestamp.astimezone(pytz.UTC).isoformat()
+
+    # Reserve the slot
+    reserve_slot(
+        event_type_id=int(CONFIG["eventTypeId"]),
+        slot_start=timestamp_utc
+    )
+
+    # Book the appointment
+    book_appointment(
+        attendee={
+            "name": appointment.patient_name,
+            "email": CONFIG["email"],
+            "language": CONFIG["language"],
+            "timeZone": browser_time_zone,
+        },
+        event_type_id=int(CONFIG["eventTypeId"]),
+        start=timestamp_utc
+    )
+
+    # Create new appointment object
+    new_appointment = Appointment(
+        id="-1",
+        timestamp=datetime.now(),
+        patient_name="",
+        mrn="",
+        date="",
+        time="",
+        provider="",
+        reason="",
+        status="pending"
+    )
+
+    return new_appointment
 
 
 def sts_connect():

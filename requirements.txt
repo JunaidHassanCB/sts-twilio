@@ -1,7 +1,9 @@
 certifi==2024.8.30
 charset-normalizer==3.3.2
 idna==3.8
+load-dotenv==0.1.0
+python-dotenv==1.1.1
+pytz==2025.2
 requests==2.32.3
 urllib3==2.2.3
 websockets==12.0
-
